@@ -11,7 +11,7 @@ using System.Collections;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace DNR
+namespace CSR
 {
     public static class EventKey
     {

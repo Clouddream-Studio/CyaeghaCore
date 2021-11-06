@@ -1,4 +1,4 @@
-﻿using DNR;
+﻿using CSR;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -6,6 +6,7 @@ using System.Net;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Timers;
+using System.Windows;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using YamlDotNet.Serialization;
@@ -155,7 +156,7 @@ namespace Cyaegha
                     {
                         LoadNameEvent e = LoadNameEvent.getFrom(es);
                         string platform = "Unknown";
-                        try
+                        if (config.getplatformptrs.ContainsKey(api.VERSION))
                         {
                             platform = new List<string>
                             {
@@ -176,9 +177,9 @@ namespace Cyaegha
                                 "WindowsMobile"
                             }[Convert.ToInt32(Marshal.GetDelegateForFunctionPointer<getPlatform>(api.dlsym(config.getplatformptrs[api.VERSION]))(e.playerPtr))];
                         }
-                        catch (Exception)
+                        else
                         {
-                            Console.WriteLine($"[{DateTime.Now} WARN] [CYA] 未定义该版本偏移量 无法获取设备信息");
+                            MessageBox.Show($"警告！您未配置与您当前版本相应的地址！接下来可能会导致崩溃！\n源自：main -> GetPlatform", "Cyaegha - ERROR!!");
                         }
                         botClient.SendTextMessageAsync(config.chatId, langPack.connected.Replace("%n", config.serverName).Replace("%p", e.playername).Replace("%d", platform));
                         return true;

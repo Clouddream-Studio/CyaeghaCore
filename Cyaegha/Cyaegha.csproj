@@ -37,7 +37,7 @@
     <Compile Include="BDS\Events.cs" />
     <Compile Include="BDS\MCNETAPI.cs" />
     <Compile Include="BDS\Plugin.cs" />
-    <Compile Include="dllmain.cs" />
+    <Compile Include="Dllmain.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -52,6 +52,9 @@
     <PackageReference Include="YamlDotNet">
       <Version>11.2.1</Version>
     </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="PresentationFramework" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

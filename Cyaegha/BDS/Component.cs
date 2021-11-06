@@ -2,7 +2,7 @@
 using System.Collections;
 using System.Runtime.InteropServices;
 
-namespace DNR
+namespace CSR
 {
     public enum ActorDamageCause : int
     {

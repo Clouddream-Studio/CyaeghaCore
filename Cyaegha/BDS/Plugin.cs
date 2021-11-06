@@ -8,7 +8,7 @@
  */
 using System;
 
-namespace DNR
+namespace CSR
 {
     internal partial class Plugin
     {

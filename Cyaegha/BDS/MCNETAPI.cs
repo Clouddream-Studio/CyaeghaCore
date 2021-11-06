@@ -11,7 +11,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-namespace DNR
+namespace CSR
 {
     /// <summary>
     /// API接口定义
