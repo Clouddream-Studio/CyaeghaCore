@@ -7,8 +7,8 @@
     <ProjectGuid>{977E9923-128E-40C5-9C92-B99EDA78E275}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Cyaegha</RootNamespace>
-    <AssemblyName>Cyaegha.csr</AssemblyName>
+    <RootNamespace>CyaeghaCore</RootNamespace>
+    <AssemblyName>CyaeghaCore.csr</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>

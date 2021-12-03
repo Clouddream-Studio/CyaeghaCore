@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31825.309
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cyaegha", "Cyaegha\Cyaegha.csproj", "{977E9923-128E-40C5-9C92-B99EDA78E275}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CyaeghaCore", "Cyaegha\CyaeghaCore.csproj", "{977E9923-128E-40C5-9C92-B99EDA78E275}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

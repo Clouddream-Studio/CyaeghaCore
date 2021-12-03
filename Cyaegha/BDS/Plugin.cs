@@ -6,6 +6,7 @@
  * 
  * 要改变这种模板请点击 工具|选项|代码编写|编辑标准头文件
  */
+using CyaeghaCore;
 using System;
 
 namespace CSR
@@ -25,7 +26,7 @@ namespace CSR
                 api = new MCNETAPI(pav[0], pav[1], pav[pav.Length - 1] == "1");
                 if (api != null)
                 {
-                    Cyaegha.Dllmain.onLoad(api);
+                    Dllmain.onLoad(api);
                     GC.KeepAlive(api);
                     return 0;
                 }
@@ -34,10 +35,5 @@ namespace CSR
             return -1;
         }
         #endregion
-
-        ~Plugin()
-        {
-            //Console.WriteLine("[DNR Plugin] Ref released.");
-        }
     }
 }

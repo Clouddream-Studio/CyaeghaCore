@@ -12,7 +12,7 @@ using Telegram.Bot.Types;
 using YamlDotNet.Serialization;
 using File = System.IO.File;
 
-namespace Cyaegha
+namespace CyaeghaCore
 {
     public class Dllmain
     {
@@ -73,21 +73,21 @@ namespace Cyaegha
             };
             try
             {
-                if (!Directory.Exists("plugins\\Cyaegha"))
+                if (!Directory.Exists("plugins\\CyaeghaCore"))
                 {
-                    Directory.CreateDirectory("plugins\\Cyaegha");
-                    Directory.CreateDirectory("plugins\\Cyaegha\\LanguagePack");
-                    File.WriteAllText("plugins\\Cyaegha\\config.yaml", new Serializer().Serialize(config));
-                    File.WriteAllText("plugins\\Cyaegha\\LanguagePack\\zh.yaml", new Serializer().Serialize(langPack));
-                    File.WriteAllText("plugins\\Cyaegha\\LanguagePack\\en.yaml", new Serializer().Serialize(langPacken));
-                    Console.WriteLine($"[{DateTime.Now} WARN] [CYA] 请先配置位于\"plugins\\Cyaegha\\config.yaml\"的配置文件并重启服务器以使用本插件");
+                    Directory.CreateDirectory("plugins\\CyaeghaCore");
+                    Directory.CreateDirectory("plugins\\CyaeghaCore\\LanguagePack");
+                    File.WriteAllText("plugins\\CyaeghaCore\\config.yaml", new Serializer().Serialize(config));
+                    File.WriteAllText("plugins\\CyaeghaCore\\LanguagePack\\zh.yaml", new Serializer().Serialize(langPack));
+                    File.WriteAllText("plugins\\CyaeghaCore\\LanguagePack\\en.yaml", new Serializer().Serialize(langPacken));
+                    Console.WriteLine($"[{DateTime.Now} WARN] [CYA] 请先配置位于\"plugins\\CyaeghaCore\\config.yaml\"的配置文件并重启服务器以使用本插件");
                 }
                 else
                 {
                     ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-                    config = deserializer.Deserialize<Config>(File.ReadAllText("plugins\\Cyaegha\\config.yaml"));
+                    config = deserializer.Deserialize<Config>(File.ReadAllText("plugins\\CyaeghaCore\\config.yaml"));
                     config.serverName = config.serverName == string.Empty ? Regex.Replace(GetVaule("server.properties", "server-name"), "§.", string.Empty) : config.serverName;
-                    langPack = deserializer.Deserialize<LanguagePack>(File.ReadAllText($"plugins\\Cyaegha\\LanguagePack\\{config.language}.yaml"));
+                    langPack = deserializer.Deserialize<LanguagePack>(File.ReadAllText($"plugins\\CyaeghaCore\\LanguagePack\\{config.language}.yaml"));
                     bool runcmded = false;
                     TelegramBotClient botClient = new TelegramBotClient(config.token);
                     botClient.StartReceiving();
@@ -179,7 +179,7 @@ namespace Cyaegha
                         }
                         else
                         {
-                            MessageBox.Show($"警告！您未配置与您当前版本相应的地址！接下来可能会导致崩溃！\n源自：main -> GetPlatform", "Cyaegha - ERROR!!");
+                            MessageBox.Show($"警告！您未配置与您当前版本相应的地址！接下来可能会导致崩溃！\n源自：main -> GetPlatform", "CyaeghaCore - ERROR!!");
                         }
                         botClient.SendTextMessageAsync(config.chatId, langPack.connected.Replace("%n", config.serverName).Replace("%p", e.playername).Replace("%d", platform));
                         return true;
