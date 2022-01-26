@@ -37,6 +37,7 @@ namespace CyaeghaCore
             public string feedback { get; set; }
             public string notop { get; set; }
         }
+        private delegate uint getPlatform(IntPtr playerPtr);
         public static unsafe void onLoad(MCNETAPI api)
         {
             int playerCount = 0;
@@ -173,7 +174,7 @@ namespace CyaeghaCore
                             "Switch",
                             "Xbox",
                             "WindowsMobile"
-                        }[Convert.ToInt32(Marshal.GetDelegateForFunctionPointer<Func<IntPtr, uint>>(api.dlsym(address[0]))(e.playerPtr))];
+                        }[Convert.ToInt32(Marshal.GetDelegateForFunctionPointer<getPlatform>(api.dlsym(address[0]))(e.playerPtr))];
                         botClient.SendTextMessageAsync(config.chatId, langPack.connected.Replace("%n", config.serverName).Replace("%p", e.playername).Replace("%d", platform).Replace("%c", $"{playerCount}"));
                         return true;
                     });
