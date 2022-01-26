@@ -33,6 +33,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="BDSAddressWebAPI.cs" />
     <Compile Include="BDS\Component.cs" />
     <Compile Include="BDS\Events.cs" />
     <Compile Include="BDS\MCNETAPI.cs" />
@@ -54,7 +55,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="PresentationFramework" />
+    <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

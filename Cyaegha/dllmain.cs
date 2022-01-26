@@ -1,4 +1,5 @@
-﻿using CSR;
+﻿using BDSAddrApi;
+using CSR;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -6,7 +7,6 @@ using System.Net;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Timers;
-using System.Windows;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using YamlDotNet.Serialization;
@@ -16,7 +16,6 @@ namespace CyaeghaCore
 {
     public class Dllmain
     {
-        private delegate uint getPlatform(IntPtr playerPtr);
         private class Config
         {
             public string token { get; set; }
@@ -24,7 +23,7 @@ namespace CyaeghaCore
             public string serverName { get; set; }
             public List<long> opsId { get; set; }
             public string language { get; set; }
-            public Dictionary<string, int> getplatformptrs { get; set; }
+            public string proxy { get; set; }
         }
         private class LanguagePack
         {
@@ -40,20 +39,20 @@ namespace CyaeghaCore
         }
         public static unsafe void onLoad(MCNETAPI api)
         {
+            int playerCount = 0;
             Deserializer deserializer = new Deserializer();
             Config config = new Config
             {
                 serverName = Regex.Replace(GetVaule("server.properties", "server-name"), "§.", string.Empty),
-                language = "zh",
-                getplatformptrs = new Dictionary<string, int> { { "1.17.32.02", 12005248 } }
+                language = "zh"
             };
             LanguagePack langPack = new LanguagePack
             {
                 start = "[%n] 服务器已开启",
                 messagetoserver = "[Telegram] <%p> %m",
                 messagetochat = "[%n] <%p> %m",
-                connected = "[%n] %p 使用 %d 加入了服务器",
-                disconnected = "[%n] %p 退出了服务器",
+                connected = "[%n] %p 使用 %d 加入了服务器 当前在线%c人",
+                disconnected = "[%n] %p 退出了服务器 当前在线%c人",
                 dead = "[%n] %p 死了",
                 killed = "[%n] %p 被 %s 杀死了",
                 feedback = "[%n] %f",
@@ -64,8 +63,8 @@ namespace CyaeghaCore
                 start = "[%n] Server Started",
                 messagetoserver = "[Telegram] <%p> %m",
                 messagetochat = "[%n] <%p> %m",
-                connected = "[%n] %p joined the server using %d",
-                disconnected = "[%n] %p left the game",
+                connected = "[%n] %p joined the server using %d, now %c player(s) online",
+                disconnected = "[%n] %p left the game, now %c player(s) online",
                 dead = "[%n] %p dead",
                 killed = "[%n] %p killed by %s",
                 feedback = "[%n] %f",
@@ -84,12 +83,13 @@ namespace CyaeghaCore
                 }
                 else
                 {
+                    BDSAddressWebAPI.GetAddress_Try(Plugin.api.VERSION, new string[] { "?getPlatform@Player@@QEBA?AW4BuildPlatform@@XZ" }, out int[] address);
                     ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
                     config = deserializer.Deserialize<Config>(File.ReadAllText("plugins\\CyaeghaCore\\config.yaml"));
-                    config.serverName = config.serverName == string.Empty ? Regex.Replace(GetVaule("server.properties", "server-name"), "§.", string.Empty) : config.serverName;
+                    config.serverName = string.IsNullOrWhiteSpace(config.serverName) ? Regex.Replace(GetVaule("server.properties", "server-name"), "§.", string.Empty) : config.serverName;
                     langPack = deserializer.Deserialize<LanguagePack>(File.ReadAllText($"plugins\\CyaeghaCore\\LanguagePack\\{config.language}.yaml"));
                     bool runcmded = false;
-                    TelegramBotClient botClient = new TelegramBotClient(config.token);
+                    TelegramBotClient botClient = new TelegramBotClient(config.token, new WebProxy(config.proxy));
                     botClient.StartReceiving();
                     botClient.SendTextMessageAsync(config.chatId, langPack.start.Replace("%n", config.serverName));
                     User me = botClient.GetMeAsync().Result;
@@ -155,38 +155,32 @@ namespace CyaeghaCore
                     api.addBeforeActListener("onLoadName", es =>
                     {
                         LoadNameEvent e = LoadNameEvent.getFrom(es);
-                        string platform = "Unknown";
-                        if (config.getplatformptrs.ContainsKey(api.VERSION))
+                        playerCount++;
+                        string platform = new List<string>
                         {
-                            platform = new List<string>
-                            {
-                                "Unknown",
-                                "Android",
-                                "iOS",
-                                "macOS",
-                                "FireOS",
-                                "GearVR",
-                                "HoloLens",
-                                "UWP",
-                                "Windows",
-                                "Dedicated",
-                                "tvOS",
-                                "PlayStation",
-                                "Switch",
-                                "Xbox",
-                                "WindowsMobile"
-                            }[Convert.ToInt32(Marshal.GetDelegateForFunctionPointer<getPlatform>(api.dlsym(config.getplatformptrs[api.VERSION]))(e.playerPtr))];
-                        }
-                        else
-                        {
-                            MessageBox.Show($"警告！您未配置与您当前版本相应的地址！接下来可能会导致崩溃！\n源自：main -> GetPlatform", "CyaeghaCore - ERROR!!");
-                        }
-                        botClient.SendTextMessageAsync(config.chatId, langPack.connected.Replace("%n", config.serverName).Replace("%p", e.playername).Replace("%d", platform));
+                            "Unknown",
+                            "Android",
+                            "iOS",
+                            "macOS",
+                            "FireOS",
+                            "GearVR",
+                            "HoloLens",
+                            "UWP",
+                            "Windows",
+                            "Dedicated",
+                            "tvOS",
+                            "PlayStation",
+                            "Switch",
+                            "Xbox",
+                            "WindowsMobile"
+                        }[Convert.ToInt32(Marshal.GetDelegateForFunctionPointer<Func<IntPtr, uint>>(api.dlsym(address[0]))(e.playerPtr))];
+                        botClient.SendTextMessageAsync(config.chatId, langPack.connected.Replace("%n", config.serverName).Replace("%p", e.playername).Replace("%d", platform).Replace("%c", $"{playerCount}"));
                         return true;
                     });
                     api.addBeforeActListener("onPlayerLeft", es =>
                     {
-                        botClient.SendTextMessageAsync(config.chatId, langPack.disconnected.Replace("%n", config.serverName).Replace("%p", PlayerLeftEvent.getFrom(es).playername));
+                        playerCount--;
+                        botClient.SendTextMessageAsync(config.chatId, langPack.disconnected.Replace("%n", config.serverName).Replace("%p", PlayerLeftEvent.getFrom(es).playername).Replace("%c", $"{playerCount}"));
                         return true;
                     });
                     api.addBeforeActListener("onMobDie", es =>
