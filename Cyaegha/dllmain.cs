@@ -6,7 +6,6 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using System.Timers;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -83,7 +82,14 @@ namespace CyaeghaCore
             Deserializer deserializer = new Deserializer();
             Config config = new Config
             {
-                language = "zh"
+                chatId = 0,
+                language = "zh",
+                opsId = new List<long>
+                {
+                    0
+                },
+                proxy = "127.0.0.1",
+                token = "1234567:4TT8bAc8GHUspu3ERYn-KGcvsvGB9u_n4ddy"
             };
             LanguagePack langPack = new LanguagePack
             {
@@ -101,7 +107,7 @@ namespace CyaeghaCore
                     audio = "§o音频文件",
                     channelcreated = "§o创建频道",
                     chatmemberleft = "§o退出群聊",
-                    chatmembersadded = "§o加入群聊",
+                    chatmembersadded = "§o邀请加入群聊",
                     chatphotochanged = "§o修改群头像",
                     chatphotodeleted = "§o删除群头像",
                     chattitlechanged = "§o修改群聊名称",
@@ -183,48 +189,65 @@ namespace CyaeghaCore
                     websiteconnected = "§o授权网页"
                 }
             };
+            if (!File.Exists("plugins\\CyaeghaCore\\config.yaml"))
+            {
+                Directory.CreateDirectory("plugins\\CyaeghaCore");
+                Directory.CreateDirectory("plugins\\CyaeghaCore\\LanguagePack");
+                File.WriteAllText("plugins\\CyaeghaCore\\config.yaml", new Serializer().Serialize(config));
+                File.WriteAllText("plugins\\CyaeghaCore\\LanguagePack\\zh.yaml", new Serializer().Serialize(langPack));
+                File.WriteAllText("plugins\\CyaeghaCore\\LanguagePack\\en.yaml", new Serializer().Serialize(langPacken));
+                Logger.Trace("请先配置位于\"plugins\\CyaeghaCore\\config.yaml\"的配置文件，配置完毕后按任意键继续", Logger.LogLevel.WARN);
+                Console.Read();
+            }
             try
             {
-                if (!Directory.Exists("plugins\\CyaeghaCore"))
+                BDSAddressWebAPI.GetAddress_Try(Plugin.api.VERSION, new string[] { "?getPlatform@Player@@QEBA?AW4BuildPlatform@@XZ" }, out int[] address);
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+                config = deserializer.Deserialize<Config>(File.ReadAllText("plugins\\CyaeghaCore\\config.yaml"));
+                langPack = deserializer.Deserialize<LanguagePack>(File.ReadAllText($"plugins\\CyaeghaCore\\LanguagePack\\{config.language}.yaml"));
+                bool runcmded = false;
+                TelegramBotClient botClient = new TelegramBotClient(config.token, new HttpClient(new HttpClientHandler
                 {
-                    Directory.CreateDirectory("plugins\\CyaeghaCore");
-                    Directory.CreateDirectory("plugins\\CyaeghaCore\\LanguagePack");
-                    File.WriteAllText("plugins\\CyaeghaCore\\config.yaml", new Serializer().Serialize(config));
-                    File.WriteAllText("plugins\\CyaeghaCore\\LanguagePack\\zh.yaml", new Serializer().Serialize(langPack));
-                    File.WriteAllText("plugins\\CyaeghaCore\\LanguagePack\\en.yaml", new Serializer().Serialize(langPacken));
-                    Logger.Trace("请先配置位于\"plugins\\CyaeghaCore\\config.yaml\"的配置文件并重启服务器以使用本插件", Logger.LogLevel.WARN);
-                }
-                else
+                    Proxy = new WebProxy(config.proxy, true)
+                }));
+                botClient.SendTextMessageAsync(config.chatId, langPack.start);
+                User me = botClient.GetMeAsync().Result;
+                Logger.Trace($"用户名：{me.Username}  名称：{me.FirstName}");
+                botClient.StartReceiving((botClient1, update, cancellationToken) =>
                 {
-                    BDSAddressWebAPI.GetAddress_Try(Plugin.api.VERSION, new string[] { "?getPlatform@Player@@QEBA?AW4BuildPlatform@@XZ" }, out int[] address);
-                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-                    config = deserializer.Deserialize<Config>(File.ReadAllText("plugins\\CyaeghaCore\\config.yaml"));
-                    langPack = deserializer.Deserialize<LanguagePack>(File.ReadAllText($"plugins\\CyaeghaCore\\LanguagePack\\{config.language}.yaml"));
-                    bool runcmded = false;
-                    TelegramBotClient botClient = new TelegramBotClient(config.token, new HttpClient(new HttpClientHandler
+                    if (update.Message.Chat.Id == config.chatId)
                     {
-                        Proxy = new WebProxy(config.proxy)
-                    }));
-                    botClient.SendTextMessageAsync(config.chatId, langPack.start);
-                    User me = botClient.GetMeAsync().Result;
-                    Logger.Trace($"用户名：{me.Username}  名称：{me.FirstName}");
-                    botClient.StartReceiving((botClient1, update, cancellationToken) =>
-                    {
-                        if (update.Message.Chat.Id == config.chatId)
+                        string outmsg = string.Empty;
+                        if (update.Type == UpdateType.Message)
                         {
-                            string outmsg = string.Empty;
-                            if (update.Type == UpdateType.Message)
+                            switch (update.Message.Type)
                             {
-                                switch (update.Message.Type)
-                                {
-                                    case MessageType.Text:
+                                case MessageType.Text:
+                                    {
+                                        if (update.Message.Text.StartsWith("/"))
                                         {
-                                            if (update.Message.Text.StartsWith("/"))
+                                            if (update.Message.Text == "/list" || update.Message.Text == $"/list@{me.Username}")
                                             {
-                                                if (update.Message.Text == "/list" || update.Message.Text == $"/list@{me.Username}")
+                                                runcmded = true;
+                                                api.runcmd("list");
+                                                Timer timer = new Timer
+                                                {
+                                                    Interval = 500,
+                                                    Enabled = true,
+                                                    AutoReset = false
+                                                };
+                                                timer.Elapsed += (sender1, e1) =>
+                                                {
+                                                    runcmded = false;
+                                                };
+                                                timer.Start();
+                                            }
+                                            else if (update.Message.Text.EndsWith($"@{me.Username}"))
+                                            {
+                                                if (config.opsId.Contains(update.Message.From.Id))
                                                 {
                                                     runcmded = true;
-                                                    api.runcmd("list");
+                                                    api.runcmd(update.Message.Text.Substring(1, update.Message.Text.Length - me.Username.Length - 1));
                                                     Timer timer = new Timer
                                                     {
                                                         Interval = 500,
@@ -237,161 +260,143 @@ namespace CyaeghaCore
                                                     };
                                                     timer.Start();
                                                 }
-                                                else if (update.Message.Text.EndsWith($"@{me.Username}"))
+                                                else
                                                 {
-                                                    if (config.opsId.Contains(update.Message.From.Id))
-                                                    {
-                                                        runcmded = true;
-                                                        api.runcmd(update.Message.Text.Substring(0, update.Message.Text.Length - me.Username.Length));
-                                                        Timer timer = new Timer
-                                                        {
-                                                            Interval = 500,
-                                                            Enabled = true,
-                                                            AutoReset = false
-                                                        };
-                                                        timer.Elapsed += (sender1, e1) =>
-                                                        {
-                                                            runcmded = false;
-                                                        };
-                                                        timer.Start();
-                                                    }
-                                                    else
-                                                    {
-                                                        botClient1.SendTextMessageAsync(config.chatId, langPack.notop);
-                                                    }
+                                                    botClient1.SendTextMessageAsync(config.chatId, langPack.notop);
                                                 }
                                             }
-                                            else
-                                            {
-                                                outmsg = update.Message.Text;
-                                            }
-                                            break;
                                         }
-                                    case MessageType.Unknown:
-                                        outmsg = langPack.messagetype.unknown;
+                                        else
+                                        {
+                                            outmsg = update.Message.Text;
+                                        }
                                         break;
-                                    case MessageType.Photo:
-                                        outmsg = langPack.messagetype.photo;
-                                        break;
-                                    case MessageType.Audio:
-                                        outmsg = langPack.messagetype.audio.Replace("%n", update.Message.Audio.FileName);
-                                        break;
-                                    case MessageType.Video:
-                                        outmsg = langPack.messagetype.video;
-                                        break;
-                                    case MessageType.Voice:
-                                        outmsg = langPack.messagetype.voice.Replace("%d", $"{update.Message.Voice.Duration}");
-                                        break;
-                                    case MessageType.Document:
-                                        outmsg = langPack.messagetype.document.Replace("%n", update.Message.Document.FileName);
-                                        break;
-                                    case MessageType.Sticker:
-                                        outmsg = langPack.messagetype.sticker.Replace("%e", update.Message.Sticker.Emoji);
-                                        break;
-                                    case MessageType.Location:
-                                        outmsg = langPack.messagetype.location;
-                                        break;
-                                    case MessageType.Contact:
-                                        outmsg = langPack.messagetype.contact.Replace("%n", update.Message.Contact.FirstName);
-                                        break;
-                                    case MessageType.Venue:
-                                        outmsg = langPack.messagetype.venue.Replace("%t", update.Message.Venue.Title);
-                                        break;
-                                    case MessageType.Game:
-                                        outmsg = langPack.messagetype.game.Replace("%t", update.Message.Game.Title);
-                                        break;
-                                    case MessageType.VideoNote:
-                                        outmsg = langPack.messagetype.videonote;
-                                        break;
-                                    case MessageType.Invoice:
-                                        outmsg = langPack.messagetype.invoice.Replace("%t", update.Message.Invoice.Title);
-                                        break;
-                                    case MessageType.SuccessfulPayment:
-                                        outmsg = langPack.messagetype.successfulpayment;
-                                        break;
-                                    case MessageType.WebsiteConnected:
-                                        outmsg = langPack.messagetype.websiteconnected;
-                                        break;
-                                    case MessageType.ChatMembersAdded:
-                                        outmsg = langPack.messagetype.chatmembersadded;
-                                        break;
-                                    case MessageType.ChatMemberLeft:
-                                        outmsg = langPack.messagetype.chatmemberleft;
-                                        break;
-                                    case MessageType.ChatTitleChanged:
-                                        outmsg = langPack.messagetype.chattitlechanged;
-                                        break;
-                                    case MessageType.ChatPhotoChanged:
-                                        outmsg = langPack.messagetype.chatphotochanged;
-                                        break;
-                                    case MessageType.MessagePinned:
-                                        outmsg = langPack.messagetype.messagepinned;
-                                        break;
-                                    case MessageType.ChatPhotoDeleted:
-                                        outmsg = langPack.messagetype.chatphotodeleted;
-                                        break;
-                                    case MessageType.GroupCreated:
-                                        outmsg = langPack.messagetype.groupcreated;
-                                        break;
-                                    case MessageType.SupergroupCreated:
-                                        outmsg = langPack.messagetype.supergroupcreated;
-                                        break;
-                                    case MessageType.ChannelCreated:
-                                        outmsg = langPack.messagetype.channelcreated;
-                                        break;
-                                    case MessageType.MigratedToSupergroup:
-                                        outmsg = langPack.messagetype.migratedtosupergroup;
-                                        break;
-                                    case MessageType.MigratedFromGroup:
-                                        outmsg = langPack.messagetype.migratedfromgroup;
-                                        break;
-                                    case MessageType.Poll:
-                                        outmsg = langPack.messagetype.poll.Replace("%q", update.Message.Poll.Question);
-                                        break;
-                                    case MessageType.Dice:
-                                        outmsg = langPack.messagetype.dice.Replace("%v", $"{update.Message.Dice.Value}");
-                                        break;
-                                    case MessageType.MessageAutoDeleteTimerChanged:
-                                        outmsg = langPack.messagetype.messageautodeletetimerchanged;
-                                        break;
-                                    case MessageType.ProximityAlertTriggered:
-                                        outmsg = langPack.messagetype.proximityalerttriggered;
-                                        break;
-                                    case MessageType.VoiceChatScheduled:
-                                        outmsg = langPack.messagetype.voicechatscheduled;
-                                        break;
-                                    case MessageType.VoiceChatStarted:
-                                        outmsg = langPack.messagetype.voicechatstarted;
-                                        break;
-                                    case MessageType.VoiceChatEnded:
-                                        outmsg = langPack.messagetype.voicechatended;
-                                        break;
-                                    case MessageType.VoiceChatParticipantsInvited:
-                                        outmsg = langPack.messagetype.voicechatparticipantsinvited;
-                                        break;
-                                }
-                            }
-                            if (!string.IsNullOrWhiteSpace(outmsg))
-                            {
-                                api.runcmd($"tellraw @a {{\"rawtext\":[{{\"text\":\"{langPack.messagetoserver.Replace("%p", $"{update.Message.From.FirstName}").Replace("%m", outmsg.Replace("\"", "\\\""))}\"}}]}}");
+                                    }
+                                case MessageType.Unknown:
+                                    outmsg = langPack.messagetype.unknown;
+                                    break;
+                                case MessageType.Photo:
+                                    outmsg = langPack.messagetype.photo;
+                                    break;
+                                case MessageType.Audio:
+                                    outmsg = langPack.messagetype.audio.Replace("%n", update.Message.Audio.FileName);
+                                    break;
+                                case MessageType.Video:
+                                    outmsg = langPack.messagetype.video;
+                                    break;
+                                case MessageType.Voice:
+                                    outmsg = langPack.messagetype.voice.Replace("%d", $"{update.Message.Voice.Duration}");
+                                    break;
+                                case MessageType.Document:
+                                    outmsg = langPack.messagetype.document.Replace("%n", update.Message.Document.FileName);
+                                    break;
+                                case MessageType.Sticker:
+                                    outmsg = langPack.messagetype.sticker.Replace("%e", update.Message.Sticker.Emoji);
+                                    break;
+                                case MessageType.Location:
+                                    outmsg = langPack.messagetype.location;
+                                    break;
+                                case MessageType.Contact:
+                                    outmsg = langPack.messagetype.contact.Replace("%n", update.Message.Contact.FirstName);
+                                    break;
+                                case MessageType.Venue:
+                                    outmsg = langPack.messagetype.venue.Replace("%t", update.Message.Venue.Title);
+                                    break;
+                                case MessageType.Game:
+                                    outmsg = langPack.messagetype.game.Replace("%t", update.Message.Game.Title);
+                                    break;
+                                case MessageType.VideoNote:
+                                    outmsg = langPack.messagetype.videonote;
+                                    break;
+                                case MessageType.Invoice:
+                                    outmsg = langPack.messagetype.invoice.Replace("%t", update.Message.Invoice.Title);
+                                    break;
+                                case MessageType.SuccessfulPayment:
+                                    outmsg = langPack.messagetype.successfulpayment;
+                                    break;
+                                case MessageType.WebsiteConnected:
+                                    outmsg = langPack.messagetype.websiteconnected;
+                                    break;
+                                case MessageType.ChatMembersAdded:
+                                    outmsg = langPack.messagetype.chatmembersadded;
+                                    break;
+                                case MessageType.ChatMemberLeft:
+                                    outmsg = langPack.messagetype.chatmemberleft;
+                                    break;
+                                case MessageType.ChatTitleChanged:
+                                    outmsg = langPack.messagetype.chattitlechanged;
+                                    break;
+                                case MessageType.ChatPhotoChanged:
+                                    outmsg = langPack.messagetype.chatphotochanged;
+                                    break;
+                                case MessageType.MessagePinned:
+                                    outmsg = langPack.messagetype.messagepinned;
+                                    break;
+                                case MessageType.ChatPhotoDeleted:
+                                    outmsg = langPack.messagetype.chatphotodeleted;
+                                    break;
+                                case MessageType.GroupCreated:
+                                    outmsg = langPack.messagetype.groupcreated;
+                                    break;
+                                case MessageType.SupergroupCreated:
+                                    outmsg = langPack.messagetype.supergroupcreated;
+                                    break;
+                                case MessageType.ChannelCreated:
+                                    outmsg = langPack.messagetype.channelcreated;
+                                    break;
+                                case MessageType.MigratedToSupergroup:
+                                    outmsg = langPack.messagetype.migratedtosupergroup;
+                                    break;
+                                case MessageType.MigratedFromGroup:
+                                    outmsg = langPack.messagetype.migratedfromgroup;
+                                    break;
+                                case MessageType.Poll:
+                                    outmsg = langPack.messagetype.poll.Replace("%q", update.Message.Poll.Question);
+                                    break;
+                                case MessageType.Dice:
+                                    outmsg = langPack.messagetype.dice.Replace("%v", $"{update.Message.Dice.Value}");
+                                    break;
+                                case MessageType.MessageAutoDeleteTimerChanged:
+                                    outmsg = langPack.messagetype.messageautodeletetimerchanged;
+                                    break;
+                                case MessageType.ProximityAlertTriggered:
+                                    outmsg = langPack.messagetype.proximityalerttriggered;
+                                    break;
+                                case MessageType.VoiceChatScheduled:
+                                    outmsg = langPack.messagetype.voicechatscheduled;
+                                    break;
+                                case MessageType.VoiceChatStarted:
+                                    outmsg = langPack.messagetype.voicechatstarted;
+                                    break;
+                                case MessageType.VoiceChatEnded:
+                                    outmsg = langPack.messagetype.voicechatended;
+                                    break;
+                                case MessageType.VoiceChatParticipantsInvited:
+                                    outmsg = langPack.messagetype.voicechatparticipantsinvited;
+                                    break;
                             }
                         }
-                    }, (botClient2, exception, cancellationToken) =>
-                    {
-                        Logger.Trace(exception.Message, Logger.LogLevel.ERROR);
-                    });
-                    api.addBeforeActListener("onInputText", es =>
-                    {
-                        InputTextEvent e = InputTextEvent.getFrom(es);
-                        botClient.SendTextMessageAsync(config.chatId, langPack.messagetochat.Replace("%p", e.playername).Replace("%m", e.msg));
-                        return true;
-                    });
-                    api.addBeforeActListener("onLoadName", es =>
-                    {
-                        LoadNameEvent e = LoadNameEvent.getFrom(es);
-                        playerCount++;
-                        string platform = new List<string>
+                        if (!string.IsNullOrWhiteSpace(outmsg))
                         {
+                            api.runcmd($"tellraw @a {{\"rawtext\":[{{\"text\":\"{langPack.messagetoserver.Replace("%p", $"{update.Message.From.FirstName}").Replace("%m", outmsg.Replace("\"", "\\\""))}\"}}]}}");
+                        }
+                    }
+                }, (botClient2, exception, cancellationToken) =>
+                {
+                    Logger.Trace(exception.Message, Logger.LogLevel.ERROR);
+                });
+                api.addBeforeActListener("onInputText", es =>
+                {
+                    InputTextEvent e = InputTextEvent.getFrom(es);
+                    botClient.SendTextMessageAsync(config.chatId, langPack.messagetochat.Replace("%p", e.playername).Replace("%m", e.msg));
+                    return true;
+                });
+                api.addBeforeActListener("onLoadName", es =>
+                {
+                    LoadNameEvent e = LoadNameEvent.getFrom(es);
+                    playerCount++;
+                    string platform = new List<string>
+                    {
                             "Unknown",
                             "Android",
                             "iOS",
@@ -406,48 +411,47 @@ namespace CyaeghaCore
                             "Switch",
                             "Xbox",
                             "WindowsMobile"
-                        }[Convert.ToInt32(Marshal.GetDelegateForFunctionPointer<getPlatform>(api.dlsym(address[0]))(e.playerPtr))];
-                        botClient.SendTextMessageAsync(config.chatId, langPack.connected.Replace("%p", e.playername).Replace("%d", platform).Replace("%c", $"{playerCount}"));
-                        return true;
-                    });
-                    api.addBeforeActListener("onPlayerLeft", es =>
+                    }[Convert.ToInt32(Marshal.GetDelegateForFunctionPointer<getPlatform>(api.dlsym(address[0]))(e.playerPtr))];
+                    botClient.SendTextMessageAsync(config.chatId, langPack.connected.Replace("%p", e.playername).Replace("%d", platform).Replace("%c", $"{playerCount}"));
+                    return true;
+                });
+                api.addBeforeActListener("onPlayerLeft", es =>
+                {
+                    playerCount--;
+                    botClient.SendTextMessageAsync(config.chatId, langPack.disconnected.Replace("%p", PlayerLeftEvent.getFrom(es).playername).Replace("%c", $"{playerCount}"));
+                    return true;
+                });
+                api.addBeforeActListener("onMobDie", es =>
+                {
+                    MobDieEvent e = MobDieEvent.getFrom(es);
+                    if (!string.IsNullOrWhiteSpace(e.playername))
                     {
-                        playerCount--;
-                        botClient.SendTextMessageAsync(config.chatId, langPack.disconnected.Replace("%p", PlayerLeftEvent.getFrom(es).playername).Replace("%c", $"{playerCount}"));
-                        return true;
-                    });
-                    api.addBeforeActListener("onMobDie", es =>
-                    {
-                        MobDieEvent e = MobDieEvent.getFrom(es);
-                        if (!string.IsNullOrWhiteSpace(e.playername))
+                        if (string.IsNullOrWhiteSpace(e.srctype))
                         {
-                            if (string.IsNullOrWhiteSpace(e.srctype))
-                            {
-                                botClient.SendTextMessageAsync(config.chatId, langPack.dead.Replace("%p", e.playername));
-                            }
-                            else if (string.IsNullOrWhiteSpace(e.srcname))
-                            {
-                                botClient.SendTextMessageAsync(config.chatId, langPack.killed.Replace("%p", e.playername).Replace("%s", e.srctype.Split('.')[1]));
-                            }
-                            else
-                            {
-                                botClient.SendTextMessageAsync(config.chatId, langPack.killed.Replace("%p", e.playername).Replace("%s", e.srcname));
-                            }
+                            botClient.SendTextMessageAsync(config.chatId, langPack.dead.Replace("%p", e.playername));
                         }
-                        return true;
-                    });
-                    api.addBeforeActListener("onServerCmdOutput", es =>
-                    {
-                        if (runcmded)
+                        else if (string.IsNullOrWhiteSpace(e.srcname))
                         {
-                            botClient.SendTextMessageAsync(config.chatId, langPack.feedback.Replace("%f", ServerCmdOutputEvent.getFrom(es).output));
-                            runcmded = false;
-                            return false;
+                            botClient.SendTextMessageAsync(config.chatId, langPack.killed.Replace("%p", e.playername).Replace("%s", e.srctype.Split('.')[1]));
                         }
-                        return true;
-                    });
-                    Logger.Trace("已装载");
-                }
+                        else
+                        {
+                            botClient.SendTextMessageAsync(config.chatId, langPack.killed.Replace("%p", e.playername).Replace("%s", e.srcname));
+                        }
+                    }
+                    return true;
+                });
+                api.addBeforeActListener("onServerCmdOutput", es =>
+                {
+                    if (runcmded)
+                    {
+                        botClient.SendTextMessageAsync(config.chatId, langPack.feedback.Replace("%f", ServerCmdOutputEvent.getFrom(es).output));
+                        runcmded = false;
+                        return false;
+                    }
+                    return true;
+                });
+                Logger.Trace("已装载");
             }
             catch (Exception ex)
             {
